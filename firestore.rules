@@ -1,0 +1,153 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- VALIDATION HELPERS ---
+    function isValidMatrimonialProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.profileCode is string && data.profileCode.size() >= 3 && data.profileCode.size() <= 20 &&
+             data.gender in ['PATRO', 'PATRI'] &&
+             data.age is int && data.age >= 18 && data.age <= 80 &&
+             data.division is string && data.division.size() >= 1 && data.division.size() <= 60 &&
+             data.education is string && data.education.size() >= 1 && data.education.size() <= 120 &&
+             data.profession is string && data.profession.size() >= 1 && data.profession.size() <= 120 &&
+             data.practicingNote is string && data.practicingNote.size() >= 1 && data.practicingNote.size() <= 300 &&
+             data.bioBangla is string && data.bioBangla.size() >= 1 && data.bioBangla.size() <= 1000 &&
+             data.waliRelation is string && data.waliRelation.size() >= 1 && data.waliRelation.size() <= 60 &&
+             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.photoBlurred is bool &&
+             data.active is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMatrimonialRequest(data) {
+      return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.receiverId is string && data.receiverId.size() >= 1 && data.receiverId.size() <= 128 &&
+             data.senderId != data.receiverId &&
+             data.participantIds is list && data.participantIds.size() == 2 &&
+             data.participantIds[0] is string && data.participantIds[1] is string &&
+             data.participantIds[0] == data.senderId && data.participantIds[1] == data.receiverId &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100 &&
+             data.receiverName is string && data.receiverName.size() >= 1 && data.receiverName.size() <= 100 &&
+             data.status in ['PENDING', 'ACCEPTED', 'DECLINED'] &&
+             data.introMessage is string && data.introMessage.size() >= 1 && data.introMessage.size() <= 400 &&
+             data.photoRevealApproved is bool &&
+             data.waliVerified is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMatrimonialMessage(data) {
+      return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.participantIds is list && data.participantIds.size() == 2 &&
+             data.participantIds[0] is string && data.participantIds[1] is string &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 1000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /matrimonialProfiles/{profileId} {
+      allow get: if isValidId(profileId) && isSignedIn() && (request.auth.uid == profileId || (resource != null && existing().active == true));
+      allow list: if isSignedIn() && existing().active == true;
+
+      allow create: if isValidId(profileId) &&
+                       isOwner(profileId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'profileCode', 'gender', 'age', 'division', 'education', 'profession', 'practicingNote', 'bioBangla', 'waliRelation', 'photoBlurred', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'profileCode', 'gender', 'age', 'division', 'education', 'profession', 'practicingNote', 'bioBangla', 'waliRelation', 'photoUrl', 'photoBlurred', 'active', 'createdAt', 'updatedAt']) &&
+                       isValidMatrimonialProfile(incoming());
+
+      allow update: if isValidId(profileId) &&
+                       isOwner(profileId) &&
+                       isValidMatrimonialProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().profileCode == existing().profileCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['gender', 'age', 'division', 'education', 'profession', 'practicingNote', 'bioBangla', 'waliRelation', 'photoUrl', 'photoBlurred', 'active', 'updatedAt']);
+
+      allow delete: if isValidId(profileId) && isOwner(profileId);
+    }
+
+    match /matrimonialRequests/{requestId} {
+      allow get: if isValidId(requestId) && isSignedIn() && (resource != null && request.auth.uid in existing().participantIds);
+      allow list: if isSignedIn() && (request.auth.uid in existing().participantIds);
+
+      allow create: if isValidId(requestId) &&
+                       isSignedIn() &&
+                       incoming().senderId == request.auth.uid &&
+                       incoming().status == 'PENDING' &&
+                       incoming().photoRevealApproved == false &&
+                       incoming().keys().hasAll(['senderId', 'receiverId', 'participantIds', 'senderName', 'receiverName', 'status', 'introMessage', 'photoRevealApproved', 'waliVerified', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['senderId', 'receiverId', 'participantIds', 'senderName', 'receiverName', 'status', 'introMessage', 'photoRevealApproved', 'waliVerified', 'createdAt', 'updatedAt']) &&
+                       isValidMatrimonialRequest(incoming()) &&
+                       exists(/databases/$(database)/documents/matrimonialProfiles/$(incoming().receiverId));
+
+      allow update: if isValidId(requestId) &&
+                       isSignedIn() &&
+                       isValidMatrimonialRequest(incoming()) &&
+                       incoming().senderId == existing().senderId &&
+                       incoming().receiverId == existing().receiverId &&
+                       incoming().participantIds == existing().participantIds &&
+                       incoming().senderName == existing().senderName &&
+                       incoming().receiverName == existing().receiverName &&
+                       incoming().introMessage == existing().introMessage &&
+                       incoming().createdAt == existing().createdAt &&
+                       request.auth.uid == existing().receiverId &&
+                       (
+                         (existing().status == 'PENDING' &&
+                          incoming().status in ['ACCEPTED', 'DECLINED'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'photoRevealApproved', 'waliVerified', 'updatedAt'])) ||
+                         (existing().status == 'ACCEPTED' &&
+                          incoming().status == 'ACCEPTED' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['photoRevealApproved', 'updatedAt']))
+                       );
+
+      allow delete: if isValidId(requestId) && isSignedIn() && request.auth.uid == existing().senderId && existing().status == 'PENDING';
+
+      match /messages/{messageId} {
+        allow get: if isValidId(messageId) && isSignedIn() && (resource != null && request.auth.uid in existing().participantIds);
+        allow list: if isSignedIn() && (request.auth.uid in existing().participantIds);
+
+        allow create: if isValidId(messageId) &&
+                         isSignedIn() &&
+                         incoming().senderId == request.auth.uid &&
+                         incoming().keys().hasAll(['senderId', 'participantIds', 'text', 'createdAt']) &&
+                         incoming().keys().hasOnly(['senderId', 'participantIds', 'text', 'createdAt']) &&
+                         isValidMatrimonialMessage(incoming()) &&
+                         get(/databases/$(database)/documents/matrimonialRequests/$(requestId)).data.status == 'ACCEPTED' &&
+                         request.auth.uid in get(/databases/$(database)/documents/matrimonialRequests/$(requestId)).data.participantIds &&
+                         incoming().participantIds == get(/databases/$(database)/documents/matrimonialRequests/$(requestId)).data.participantIds;
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}

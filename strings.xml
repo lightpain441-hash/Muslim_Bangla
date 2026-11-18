@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">মুসলিম বাংলা</string>
+    <string name="app_full_title">মুসলিম বাংলা কুরআন হাদিস দুআ</string>
+    <string name="widget_description">পরবর্তী নামাজের সময়, হিজরি তারিখ ও আজকের আয়াত</string>
+    <string name="sign_in_google">গুগল অ্যাকাউন্ট দিয়ে প্রবেশ করুন</string>
+    <string name="nav_home">হোম</string>
+    <string name="nav_quran">কুরআন</string>
+    <string name="nav_hadith">হাদিস</string>
+    <string name="nav_tools">আমল ও টুলস</string>
+    <string name="nav_matrimonial">বিবাহ</string>
+    <string name="error_generic">তথ্য লোড করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।</string>
+</resources>

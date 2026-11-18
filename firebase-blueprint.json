@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "MatrimonialProfile": {
+      "title": "MatrimonialProfile",
+      "description": "Privacy-preserving Islamic matrimonial biodata without raw PII.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "profileCode": { "type": "string" },
+        "gender": { "type": "string", "enum": ["PATRO", "PATRI"] },
+        "age": { "type": "integer" },
+        "division": { "type": "string" },
+        "education": { "type": "string" },
+        "profession": { "type": "string" },
+        "practicingNote": { "type": "string" },
+        "bioBangla": { "type": "string" },
+        "waliRelation": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "photoBlurred": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId", "profileCode", "gender", "age", "division", "education",
+        "profession", "practicingNote", "bioBangla", "waliRelation",
+        "photoBlurred", "active", "createdAt", "updatedAt"
+      ]
+    },
+    "MatrimonialRequest": {
+      "title": "MatrimonialRequest",
+      "description": "Permission-gated Islamic marriage interest request between two users.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "participantIds": { "type": "array" },
+        "senderName": { "type": "string" },
+        "receiverName": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "ACCEPTED", "DECLINED"] },
+        "introMessage": { "type": "string" },
+        "photoRevealApproved": { "type": "boolean" },
+        "waliVerified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "senderId", "receiverId", "participantIds", "senderName", "receiverName",
+        "status", "introMessage", "photoRevealApproved", "waliVerified", "createdAt", "updatedAt"
+      ]
+    },
+    "MatrimonialMessage": {
+      "title": "MatrimonialMessage",
+      "description": "Respectful matrimonial message gated behind accepted interest request.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "participantIds": { "type": "array" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["senderId", "participantIds", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/matrimonialProfiles/{profileId}": {
+      "schema": { "$ref": "#/entities/MatrimonialProfile" },
+      "description": "Active privacy-preserving matrimonial biodata profiles (auth-gated)."
+    },
+    "/matrimonialRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/MatrimonialRequest" },
+      "description": "Permission-gated matrimonial interest requests between signed-in users."
+    },
+    "/matrimonialRequests/{requestId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/MatrimonialMessage" },
+      "description": "Messages inside an accepted matrimonial request."
+    }
+  }
+}
